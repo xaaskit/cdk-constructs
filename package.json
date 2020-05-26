@@ -1,0 +1,26 @@
+{
+  "name": "xaaskit-cdk",
+  "version": "0.0.0",
+  "private": true,
+  "author": "Vincent Lesierse <vincent@lesierse.com>",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "./build.sh",
+    "pack": "./pack.sh",
+    "build-all": "tsc -b"
+  },
+  "devDependencies": {
+    "typescript": "~3.9.3",
+    "lerna": "~3.22.0"
+  },
+  "workspaces": {
+    "packages": [
+      "packages/*",
+      "tools/*"
+    ],
+    "nohoist": [
+      "**/jszip",
+      "**/jszip/**"
+    ]
+  }
+}
