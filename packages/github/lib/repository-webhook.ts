@@ -4,21 +4,23 @@ import * as fn from '@aws-cdk/aws-lambda';
 
 const RESOURCE_TYPE = 'Custom::XaasKitGitHubWebhookProvider';
 
-export interface GitHubWebhookProps {
+export interface RepositoryWebhookProps {
   readonly handler: fn.IFunction;
   readonly api?: api.HttpApi;
   readonly apiPath?: string;
   readonly owner: string;
   readonly repository: string;
   readonly events: string[];
-  readonly tokenSecretId?: string;
+  readonly active?: boolean;
+  readonly token?: string;
+  readonly tokenSecretId: string;
 }
 
-export class GitHubWebhook extends cdk.Construct {
+export class RepositoryWebhook extends cdk.Construct {
 
   public readonly api: api.HttpApi;
 
-  constructor(scope: cdk.Construct, id: string, props: GitHubWebhookProps) {
+  constructor(scope: cdk.Construct, id: string, props: RepositoryWebhookProps) {
     super(scope, id);
 
     const path = props.apiPath ?? '/webhook/handle';
@@ -34,11 +36,13 @@ export class GitHubWebhook extends cdk.Construct {
       resourceType: RESOURCE_TYPE,
       serviceToken: this.getOrCreateProvider(),
       properties: {
-        Endpoint: this.api.url + (path.startsWith('/') ? path.substring(1) : path),
-        Owner: props.owner,
+        WebbookUrl: this.api.url + (path.startsWith('/') ? path.substring(1) : path),
+        WebbookActive: props.active ?? true,
         Repository: props.repository,
-        Events: props.events,
-        TokenSecretId: props.tokenSecretId ?? 'github-token',
+        RepositoryOwner: props.owner,
+        RepositoryEvents: props.events,
+        GitHubToken: props.token,
+        GitHubTokenSecretId: props.tokenSecretId ?? 'github-token',
       },
     });
   }
