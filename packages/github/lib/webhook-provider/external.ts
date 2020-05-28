@@ -6,10 +6,6 @@ import * as https from 'https';
 
 let client: aws.SecretsManager;
 
-interface GitHubResponse {
-  readonly id: string;
-}
-
 function secretsManager() {
   if (!client) { client = new aws.SecretsManager(); }
   return client;
@@ -27,6 +23,7 @@ interface GitHubApiRequest {
   readonly data?: any;
 }
 
+
 function sendGitHubApiRequest<T>(request: GitHubApiRequest): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const options: https.RequestOptions = {
@@ -41,17 +38,18 @@ function sendGitHubApiRequest<T>(request: GitHubApiRequest): Promise<T> {
       }
     };
     const data = request.data && JSON.stringify(request.data);
-    if (data) {
+    if (data && options.headers) {
       options.headers['Content-Type'] = 'application/json';
       options.headers['Content-Length'] = data.length;
     }
+    defaultLogger(`[GitHub API] Request: Options:${JSON.stringify(options)};Data:${JSON.stringify(request.data)}`);
     const req = https.request(options, res => {
       if (res.statusCode) {
         if (res.statusCode == 204) { // No Content
           resolve(undefined);
         } 
         if ((res.statusCode < 200 || res.statusCode >= 300)) {
-          new Error(`statusCode=${res.statusCode};statusMessage=${res.statusMessage}`);
+          reject(new Error(`statusCode=${res.statusCode};statusMessage=${res.statusMessage}`));
         }
       }      
       let body: any[] = [];
@@ -60,6 +58,7 @@ function sendGitHubApiRequest<T>(request: GitHubApiRequest): Promise<T> {
       });
       res.on('end', function () {
         try {
+          defaultLogger(`[GitHub API] Response: Status:${res.statusCode};Data:${Buffer.concat(body).toString()}`);
           resolve(JSON.parse(Buffer.concat(body).toString()));
         } catch (e) {
           reject(e);
@@ -78,7 +77,7 @@ interface GitHubRequest {
 }
 
 interface GitHubResponse {
-  readonly id: string;
+  readonly id: number;
 }
 
 interface RepositoryWebhookResponse extends GitHubResponse {
@@ -146,15 +145,25 @@ function deleteGitHubWebhook(request: DeleteWebhookRequest) {
 }
 
 // GitHub Token
-async function resolveGitHubToken(explicitToken: string, tokenSecretId) {
-  if (explicitToken) {
-    return explicitToken;
-  }
-  const response = await secretsManager().getSecretValue({ SecretId: tokenSecretId}).promise();
+async function resolveGitHubTokenFromSecret(secretId: string) {
+  const response = await secretsManager().getSecretValue({ SecretId: secretId}).promise();
   if (!response.SecretString) {
-    throw new Error(`GitHub token secret with id '${tokenSecretId}' not found! Please create and set the secret '${tokenSecretId}' with a GitHub OAuth token.`);
+    throw new Error(`GitHub token secret with id '${secretId}' not found! Please create and set the secret '${secretId}' with a GitHub OAuth token.`);
   }
   return response.SecretString;
+}
+
+async function resolveGitHubToken(token: string) {
+  const fragments = /{{(.*):(.*):(.*):(.*):(.*):(.*):(.*)}}/g.exec(token)?.slice(1);
+  if (fragments && fragments.length > 1 && fragments[0] === 'resolve') {
+    switch(fragments[1]) {
+      case 'secretsmanager':
+        return resolveGitHubTokenFromSecret(fragments[2]);
+      default:
+        throw new Error(`Resolve ${fragments[1]} is not supported.`);
+    }
+  }
+  return token;
 }
 
 export const external = {

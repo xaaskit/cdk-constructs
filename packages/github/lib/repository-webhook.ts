@@ -12,13 +12,17 @@ export interface RepositoryWebhookProps {
   readonly repository: string;
   readonly events: string[];
   readonly active?: boolean;
+  readonly accessToken?: cdk.SecretValue;
   readonly token?: string;
-  readonly tokenSecretId: string;
+  readonly tokenSecretId?: string;
 }
 
 export class RepositoryWebhook extends cdk.Construct {
 
   public readonly api: api.HttpApi;
+
+  public readonly webhookId: string;
+  public readonly webhookUrl: string;
 
   constructor(scope: cdk.Construct, id: string, props: RepositoryWebhookProps) {
     super(scope, id);
@@ -32,19 +36,21 @@ export class RepositoryWebhook extends cdk.Construct {
       integration: new api.LambdaProxyIntegration({ handler: props.handler }),
     });
 
-    new cdk.CustomResource(this, 'Resource', {
+    const resource = new cdk.CustomResource(this, 'Resource', {
       resourceType: RESOURCE_TYPE,
       serviceToken: this.getOrCreateProvider(),
       properties: {
-        WebbookUrl: this.api.url + (path.startsWith('/') ? path.substring(1) : path),
-        WebbookActive: props.active ?? true,
+        WebhookUrl: this.api.url + (path.startsWith('/') ? path.substring(1) : path),
+        WebhookActive: props.active ?? true,
         Repository: props.repository,
         RepositoryOwner: props.owner,
         RepositoryEvents: props.events,
-        GitHubToken: props.token,
-        GitHubTokenSecretId: props.tokenSecretId ?? 'github-token',
+        GitHubAccessToken: props.accessToken?.toString(),
       },
     });
+
+    this.webhookId = resource.ref;
+    this.webhookUrl = resource.getAttString('Url');
   }
 
   private getOrCreateProvider() {

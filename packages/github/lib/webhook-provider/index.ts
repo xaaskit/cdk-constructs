@@ -8,9 +8,9 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
 }
 
 async function onCreate(event: AWSLambda.CloudFormationCustomResourceCreateEvent) {
-  const token = await external.resolveGitHubToken(event.ResourceProperties.GitHubToken, event.ResourceProperties.GitHubTokenSecretId)
+  const token = await external.resolveGitHubToken(event.ResourceProperties.GitHubAccessToken)
 
-  const owner = event.ResourceProperties.Owner;
+  const owner = event.ResourceProperties.RepositoryOwner;
   const repository = event.ResourceProperties.Repository;
   
   const response = await external.createGitHubWebhook({
@@ -19,12 +19,12 @@ async function onCreate(event: AWSLambda.CloudFormationCustomResourceCreateEvent
     repository,
     events: event.ResourceProperties.RepositoryEvents,
     url: event.ResourceProperties.WebhookUrl,
-    active: event.ResourceProperties.WebbookActive
+    active: event.ResourceProperties.WebhookActive === 'true',
     
   });
-  const resourceId = [repository, owner, response.id].join(':');
   return {
-    PhysicalResourceId: resourceId
+    PhysicalResourceId: response.id.toString(),
+    Url: response.url,
   };
 }
 
@@ -35,13 +35,14 @@ async function onUpdate(event: AWSLambda.CloudFormationCustomResourceUpdateEvent
   const oldRepository = event.OldResourceProperties.Repository;
   const oldRepositoryOwner = event.OldResourceProperties.RepositoryOwner;
 
+  const id = event.PhysicalResourceId;
+
   // Create a new WebHook and let CloudFormation delete the old one as the PhysicalResourceId changes.
-  if (repository != oldRepository || owner != oldRepositoryOwner) {
+  if (!id || repository != oldRepository || owner != oldRepositoryOwner) {
     return onCreate({ ...event, RequestType: 'Create' });
   }
 
-  const id = event.PhysicalResourceId.split(':')[2];
-  const token = await external.resolveGitHubToken(event.ResourceProperties.GitHubToken, event.ResourceProperties.GitHubTokenSecretId)
+  const token = await external.resolveGitHubToken(event.ResourceProperties.GitHubAccessToken)
   await external.updateGitHubWebhook({
     id,
     token,
@@ -49,23 +50,27 @@ async function onUpdate(event: AWSLambda.CloudFormationCustomResourceUpdateEvent
     repository,
     events: event.ResourceProperties.RepositoryEvents,
     url: event.ResourceProperties.WebhookUrl,
-    active: event.ResourceProperties.WebbookActive  
+    active: event.ResourceProperties.WebhookActive === 'true',
   });
   return;
 }
 
 async function onDelete(event: AWSLambda.CloudFormationCustomResourceDeleteEvent) {
-  const fragments = event.PhysicalResourceId.split(':');
-  const owner = fragments[0];
-  const repository = fragments[1];
-  const id = fragments[2];
-  
-  const token = await external.resolveGitHubToken(event.ResourceProperties.GitHubToken, event.ResourceProperties.GitHubTokenSecretId)
-  await external.deleteGitHubWebhook({
-    id,
-    token,
-    owner,
-    repository,
-  });
+  const id = event.PhysicalResourceId;
+  const repository = event.ResourceProperties.Repository;
+  const owner = event.ResourceProperties.RepositoryOwner;
+
+  if (id) {
+    try {
+      const token = await external.resolveGitHubToken(event.ResourceProperties.GitHubAccessToken)
+      await external.deleteGitHubWebhook({
+        id,
+        token,
+        owner,
+        repository,
+      });
+    } catch(e) { } // Don't bother just remove the resource
+  }
+
   return;
 }

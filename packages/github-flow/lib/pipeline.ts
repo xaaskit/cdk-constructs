@@ -36,7 +36,13 @@ export class GitHubFlow extends cdk.Construct {
       code: fn.Code.fromAsset(path.join(__dirname, 'webhook-handler')),
       handler: 'index.handler'
     });
-    new gh.RepositoryWebhook(this, 'Webhook', { handler, owner: props.owner, repository: props.repository, events: [ 'pull_request' ] })
+    new gh.RepositoryWebhook(this, 'Webhook', {
+      handler,
+      owner: props.owner,
+      repository: props.repository,
+      events: [ 'pull_request', 'push' ],
+      accessToken: cdk.SecretValue.secretsManager('github-token'),
+    })
 
     // Resources
     new acm.DnsValidatedCertificate(this, 'PullRequestCertificate', {
