@@ -36,6 +36,12 @@ fail() {
   exit 1
 }
 
+# Prepare for build with references
+/bin/bash scripts/generate-aggregate-tsconfig.sh > tsconfig.json
+
+BUILD_INDICATOR=".BUILD_COMPLETED"
+rm -rf $BUILD_INDICATOR
+
 # Speed up build by reusing calculated tree hashes
 # On dev machine, this speeds up the TypeScript part of the build by ~30%.
 export MERKLE_BUILD_CACHE=$(mktemp -d)
@@ -45,3 +51,11 @@ if ! [ -x "$(command -v yarn)" ]; then
   echo "yarn is not installed. Install it from here- https://yarnpkg.com/en/docs/install."
   exit 1
 fi
+
+echo "============================================================================================="
+echo "building..."
+time lerna run $bail --stream $runtarget || fail
+
+DOWNLOAD_LATEST=true /bin/bash scripts/check-api-compatibility.sh
+
+touch $BUILD_INDICATOR

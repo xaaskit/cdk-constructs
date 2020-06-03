@@ -1,36 +1,36 @@
 {
-  "name": "@xaaskit-cdk/github-flow",
+  "name": "@xaaskit-cdk/flow",
   "version": "0.0.0",
-  "description": "CDK Construct for a pipeline using GitHub Flow",
+  "description": "CDK Construct for flow pipelines like GitHub",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "jsii": {
     "outdir": "dist",
     "targets": {
       "java": {
-        "package": "software.xaaskit.cdk.github.flow",
+        "package": "software.xaaskit.cdk.flow",
         "maven": {
           "groupId": "software.xaaskit.cdk",
-          "artifactId": "xaaskit-cdk-github-flow"
+          "artifactId": "xaaskit-cdk-flow"
         }
       },
       "dotnet": {
-        "namespace": "XaasKit.CDK.Constructs.GitHubFlow",
-        "packageId": "XaasKit.CDK.Constructs.GitHubFlow",
+        "namespace": "XaasKit.CDK.Constructs.Flow",
+        "packageId": "XaasKit.CDK.Constructs.Flow",
         "signAssembly": false,
         "assemblyOriginatorKeyFile": "../../key.snk",
         "iconUrl": "https://raw.githubusercontent.com/aws/aws-cdk/master/logo/default-256-dark.png"
       },
       "python": {
-        "distName": "xaaskit-cdk.github_flow",
-        "module": "xaaskit-cdk.github_flow"
+        "distName": "xaaskit-cdk.flow",
+        "module": "xaaskit-cdk.flow"
       }
     }
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/xaaskit/xaaskit-cdk.git",
-    "directory": "packages/github-flow"
+    "directory": "packages/@xaaskit-cdk/flow"
   },
   "homepage": "https://github.com/xaaskit/xaaskit-cdk",
   "scripts": {
@@ -53,45 +53,45 @@
   "author": "Vincent Lesierse",
   "license": "Apache-2.0",
   "dependencies": {
-    "@aws-cdk/aws-apigatewayv2": "^1.41.0",
-    "@aws-cdk/aws-certificatemanager": "^1.41.0",
-    "@aws-cdk/aws-codebuild": "^1.41.0",
-    "@aws-cdk/aws-ecr": "^1.41.0",
-    "@aws-cdk/aws-lambda": "^1.41.0",
-    "@aws-cdk/aws-route53": "^1.41.0",
-    "@aws-cdk/aws-s3": "^1.41.0",
-    "@aws-cdk/aws-sns": "^1.41.0",
-    "@aws-cdk/aws-stepfunctions": "^1.41.0",
-    "@aws-cdk/aws-stepfunctions-tasks": "^1.41.0",
-    "@aws-cdk/core": "1.41.0",
+    "@aws-cdk/aws-apigatewayv2": "^1.42.1",
+    "@aws-cdk/aws-certificatemanager": "^1.42.1",
+    "@aws-cdk/aws-codebuild": "^1.42.1",
+    "@aws-cdk/aws-ecr": "^1.42.1",
+    "@aws-cdk/aws-lambda": "^1.42.1",
+    "@aws-cdk/aws-route53": "^1.42.1",
+    "@aws-cdk/aws-s3": "^1.42.1",
+    "@aws-cdk/aws-sns": "^1.42.1",
+    "@aws-cdk/aws-stepfunctions": "^1.42.1",
+    "@aws-cdk/aws-stepfunctions-tasks": "^1.42.1",
+    "@aws-cdk/core": "1.42.1",
     "@xaaskit-cdk/github": "^0.0.0",
     "constructs": "^3.0.3"
   },
   "devDependencies": {
-    "@types/node": "^14.0.5",
+    "@types/node": "^14.0.9",
     "aws-cdk": "latest",
     "jsii": "^1.5.0",
     "jsii-pacmak": "^1.5.0",
     "npm-run-all": "^4.1.5",
     "rimraf": "3.0.2",
-    "ts-node": "^8.10.1",
+    "ts-node": "^8.10.2",
     "tslint": "^6.1.2",
     "typedoc": "^0.17.7",
     "typescript": "^3.9.3"
   },
   "peerDependencies": {
-    "@aws-cdk/aws-apigatewayv2": "^1.41.0",
-    "@aws-cdk/aws-certificatemanager": "^1.41.0",
-    "@aws-cdk/aws-codebuild": "^1.41.0",
-    "@aws-cdk/aws-ecr": "^1.41.0",
-    "@aws-cdk/aws-lambda": "^1.41.0",
-    "@aws-cdk/aws-route53": "^1.41.0",
-    "@aws-cdk/aws-s3": "^1.41.0",
-    "@aws-cdk/aws-sns": "^1.41.0",
-    "@aws-cdk/aws-stepfunctions": "^1.41.0",
-    "@aws-cdk/aws-stepfunctions-tasks": "^1.41.0",
-    "@aws-cdk/core": "1.41.0",
-    "constructs": "^3.0.3",
-    "@xaaskit-cdk/github": "^0.0.0"
+    "@aws-cdk/aws-apigatewayv2": "^1.42.1",
+    "@aws-cdk/aws-certificatemanager": "^1.42.1",
+    "@aws-cdk/aws-codebuild": "^1.42.1",
+    "@aws-cdk/aws-ecr": "^1.42.1",
+    "@aws-cdk/aws-lambda": "^1.42.1",
+    "@aws-cdk/aws-route53": "^1.42.1",
+    "@aws-cdk/aws-s3": "^1.42.1",
+    "@aws-cdk/aws-sns": "^1.42.1",
+    "@aws-cdk/aws-stepfunctions": "^1.42.1",
+    "@aws-cdk/aws-stepfunctions-tasks": "^1.42.1",
+    "@aws-cdk/core": "1.42.1",
+    "@xaaskit-cdk/github": "^0.0.0",
+    "constructs": "^3.0.3"
   }
 }

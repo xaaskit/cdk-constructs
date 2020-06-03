@@ -4,6 +4,8 @@
   "useWorkspaces": true,
   "packages": [
     "packages/*",
+    "packages/@xaaskit-cdk/*",
+    "packages/@xaaskit-cdk/*/lambda-packages/*",
     "tools/*"
   ],
   "rejectCycles": "true",

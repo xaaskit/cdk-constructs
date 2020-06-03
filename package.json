@@ -16,6 +16,8 @@
   "workspaces": {
     "packages": [
       "packages/*",
+      "packages/@xaaskit-cdk/*",
+      "packages/@xaaskit-cdk/*/lambda-packages/*",
       "tools/*"
     ],
     "nohoist": [

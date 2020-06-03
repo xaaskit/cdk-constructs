@@ -1,4 +1,3 @@
-import * as acm from '@aws-cdk/aws-certificatemanager';
 import * as cdk from '@aws-cdk/core';
 import * as cb from '@aws-cdk/aws-codebuild';
 import * as dns from '@aws-cdk/aws-route53';
@@ -12,45 +11,38 @@ import * as sfn from '@aws-cdk/aws-stepfunctions';
 import * as sns from '@aws-cdk/aws-sns';
 import * as tasks from '@aws-cdk/aws-stepfunctions-tasks';
 import { StartBuild } from './tasks/start-build';
-import { SecretValue } from '@aws-cdk/core';
 
 export interface GitHubFlowProps {
   readonly owner: string;
   readonly repository: string;
   readonly hostedZone: dns.IHostedZone;
-  readonly name?: string,
-  readonly clusterName: string,
-  readonly githubToken: SecretValue,
+  readonly applicationName?: string;
+  readonly productionClusterName: string;
+  readonly productionClusterNamespace?: string;
+  readonly developmentHostnamePrefix?: string;
+  readonly developmentClusterName?: string;
+  readonly developmentClusterNamespace?: string;
+  readonly cdkChartName?: string;
+  readonly cdkStackName?: string;
+  readonly cdkDirectory?: string;
+  readonly githubToken: cdk.SecretValue;
 }
 
 export class GitHubFlow extends cdk.Construct {
+
+  public readonly topic: sns.ITopic;
+
   constructor(scope: cdk.Construct, id: string, props: GitHubFlowProps) {
     super(scope, id);
 
-    const name = props.name ?? props.repository;
-    const hostname = `${name}.${props.hostedZone.zoneName}`;
-
-    // Webhook
-    const handler = new fn.Function(this, 'WebhookHandler', {
-      runtime: fn.Runtime.NODEJS_12_X,
-      code: fn.Code.fromAsset(path.join(__dirname, 'webhook-handler')),
-      handler: 'index.handler'
-    });
-    new gh.RepositoryWebhook(this, 'Webhook', {
-      handler,
-      owner: props.owner,
-      repository: props.repository,
-      events: [ 'pull_request', 'push' ],
-      accessToken: cdk.SecretValue.secretsManager('github-token'),
-    })
+    const applicationName = props.applicationName ?? props.repository;
+    const hostname = `${applicationName}.${props.hostedZone.zoneName}`;
+    const cdkDirectory = props.cdkDirectory ?? './cdk';
+    const cdkStackName = props.cdkStackName ?? 'Application';
+    const cdkChartName = props.cdkChartName ?? 'Application';    
 
     // Resources
-    new acm.DnsValidatedCertificate(this, 'PullRequestCertificate', {
-      domainName: `*.${hostname}`,
-      hostedZone: props.hostedZone
-    });
-
-    const topic = new sns.Topic(this, 'Topic', {});
+    this.topic = new sns.Topic(this, 'Topic', {});
     const repository = new ecr.Repository(this, 'Repository');
     const artifactsBucket = new s3.Bucket(this, 'ArtifactsBucket');
 
@@ -83,22 +75,26 @@ export class GitHubFlow extends cdk.Construct {
         version: '0.2',
         phases: {
           install: {
-            commands: [ 'npm install --prefix ./cdk' ]
-          },
-          build: {
             commands: [
-              'npm run --prefix ./cdk build',
-              'npm run --prefix ./cdk synth -- -o dist',
-              'npm run --prefix ./cdk synth-k8s -- --host $APP_HOSTNAME --image $APP_IMAGE --image-tag $APP_IMAGE_TAG',
+              `cd ${cdkDirectory}`,
+              `npm install`
+            ]
+          },
+          build: { 
+            commands: [
+              `cd ${cdkDirectory}`,
+              'npm run build',
+              `npm run synth ${cdkStackName} -- -o dist`,
+              'npm run synth-k8s -- --host $APP_HOSTNAME --image $APP_IMAGE --image-tag $APP_IMAGE_TAG',
             ],
           },
         },
         artifacts: {
           files: [
-            'Application.template.json',
-            'Application.k8s.yaml',
+            `${cdkStackName}.template.json`,
+            `${cdkChartName}.k8s.yaml`,
           ],
-          'base-directory': 'cdk/dist'
+          'base-directory': `${cdkDirectory}/dist`
         },
       }),
       environmentVariables: {
@@ -146,14 +142,14 @@ export class GitHubFlow extends cdk.Construct {
           },
           build: {
             commands: [
-              'kubectl apply --namespace $CLUSTER_NAMESPACE -f Application.k8s.yaml',
+              `kubectl apply --namespace $CLUSTER_NAMESPACE -f ${cdkChartName}.k8s.yaml`,
             ],
           },
         },
       }),
       environmentVariables: {
-        CLUSTER_NAME: { value: props.clusterName },
-        CLUSTER_NAMESPACE: { value: 'default' },
+        CLUSTER_NAME: { value: props.productionClusterName },
+        CLUSTER_NAMESPACE: { value: props.productionClusterNamespace ?? 'default' },
         CLUSTER_ROLE_ARN: { value: deploymentClusterRole.roleArn },
       }
     });
@@ -162,8 +158,8 @@ export class GitHubFlow extends cdk.Construct {
     /// Steps
     const fail = new sfn.Fail(this, 'Fail');
     const success = new sfn.Succeed(this, 'Succeeded');
-    const notifyPrending = this.taskNotifyStatus(topic, 'Pending');
-    const notifySucceeded = this.taskNotifyStatus(topic, 'Succeeded').next(success);
+    const notifyPrending = this.taskNotifyStatus(this.topic, 'Pending');
+    const notifySucceeded = this.taskNotifyStatus(this.topic, 'Succeeded').next(success);
     const definition = sfn.Chain
       .start(notifyPrending)
       .next(new sfn.Parallel(this, 'Build', { resultPath: '$.Build' })
@@ -195,7 +191,7 @@ export class GitHubFlow extends cdk.Construct {
             },
             outputPath: '$.Build'
           })
-        ).addCatch(this.taskNotifyStatus(topic, 'BuildFailed').next(fail))
+        ).addCatch(this.taskNotifyStatus(this.topic, 'BuildFailed').next(fail))
       )
       .next(
         new StartBuild(this, 'DeployInfrastructure', {
@@ -207,15 +203,37 @@ export class GitHubFlow extends cdk.Construct {
             CLUSTER_NAMESPACE: { value: sfn.Data.stringAt('$.Webhook.Application.Namespace') },
           },
           outputPath: '$.Deployment'
-        }).addCatch(this.taskNotifyStatus(topic, 'DeploymentFailed').next(fail))
+        }).addCatch(this.taskNotifyStatus(this.topic, 'DeploymentFailed').next(fail))
       )
       .next(notifySucceeded);
     
-    new sfn.StateMachine(this, 'StateMachine', { definition });
+    const stateMachine = new sfn.StateMachine(this, 'StateMachine', { definition });
+    // Webhook
+    const handler = new fn.Function(this, 'WebhookHandler', {
+      runtime: fn.Runtime.NODEJS_12_X,
+      code: fn.Code.fromAsset(path.join(__dirname, 'webhook-handler')),
+      handler: 'index.handler',
+      environment: {
+        STATE_MACHINE_ARN: stateMachine.stateMachineArn,
+        PRODUCTION_HOSTNAME: props.hostedZone.zoneName,
+        PRODUCTION_CLUSTER_NAME: props.productionClusterName,
+        PRODUCTION_CLUSTER_NAMESPACE: props.productionClusterNamespace ?? 'default',
+        DEVELOPMENT_HOSTNAME: props.developmentHostnamePrefix ? `${props.developmentHostnamePrefix}.${props.hostedZone.zoneName}` : props.hostedZone.zoneName,
+        DEVELOPMENT_CLUSTER_NAME: props.developmentClusterName ?? props.productionClusterName,
+        DEVELOPMENT_CLUSTER_NAMESPACE: props.developmentClusterNamespace ?? props.productionClusterNamespace ?? 'default',
+      }
+    });
+    new gh.RepositoryWebhook(this, 'Webhook', {
+      handler,
+      owner: props.owner,
+      repository: props.repository,
+      events: [ 'pull_request', 'push' ],
+      accessToken: cdk.SecretValue.secretsManager('github-token'),
+    });
   }
 
   private readonly notifyTasks: {[key: string]: tasks.SnsPublish} = {};
-  private taskNotifyStatus(topic: sns.Topic, status: string) {
+  private taskNotifyStatus(topic: sns.ITopic, status: string) {
     if (!this.notifyTasks[status]) {
       this.notifyTasks[status] = new tasks.SnsPublish(this, 'Notify' + status, {
         topic,
