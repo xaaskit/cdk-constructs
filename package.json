@@ -10,8 +10,8 @@
     "build-all": "tsc -b"
   },
   "devDependencies": {
-    "typescript": "~3.9.3",
-    "lerna": "~3.22.0"
+    "typescript": "~4.0.2",
+    "lerna": "~3.22.1"
   },
   "workspaces": {
     "packages": [
